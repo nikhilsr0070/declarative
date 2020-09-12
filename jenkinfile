@@ -1,1 +1,11 @@
 pipeline {
+    agent any
+
+    stages {
+        stage('Git checkout') {
+            steps {
+                git credentialsId: 'github', url: 'https://github.com/nikhilsr0070/declarative'
+            }
+        }
+    }
+}
