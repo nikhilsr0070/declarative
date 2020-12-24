@@ -1,0 +1,170 @@
+Pipelines for freestyle job should be trigger in sequence.!!
+
+Step 1:- Create FIRST job .
+
+Dashboard --> Goto New Item --> Enter the Job Name --> select freestyle projct.
+
+
+Step 2:- provide description of your project .
+
+Step 3:- Goto Souce Code Management --> Select GIT ---> repository URL.
+
+
+Step 4:- Goto Build Triggers ---> Select (Build after other projects are built). [Not Required for first Job]
+
+Step 5:- Goto Build :- Select Execute Shell 
+                             ----> Command or scripts 
+
+--------------------------------------------------------------------------------------------------------------------------------------------
+                                      NEW JOB
+                                   -----------------------------------       
+ Step 1:- Create SECOND job .
+
+Dashboard --> Goto New Item --> Enter the Job Name --> select freestyle projct.
+
+
+Step 2:- provide description of your project .
+
+Step 3:- Goto Souce Code Management --> Select GIT ---> repository URL.
+
+
+Step 4:- Goto Build Triggers ---> Select (Build after other projects are built).
+         
+         * Project to Watch 
+            --> Job Name (eg . FIRST Job)
+  
+      SELECT :- Trigger only if build is stable
+
+Step 5:- Goto Build :- Select Execute Shell 
+                             ----> Command or scripts 
+
+
+     
+                                        ------------------
+                                             NEW JOB
+---------------------------------------------------------------------------------------------------------------------------------------------
+Step 1:- Create THIRD job .
+
+Dashboard --> Goto New Item --> Enter the Job Name --> select freestyle projct.
+
+
+Step 2:- provide description of your project .
+
+Step 3:- Goto Souce Code Management --> Select GIT ---> repository URL.
+
+
+Step 4:- Goto Build Triggers ---> Select (Build after other projects are built).
+         
+  CASE1:       * Project to Watch 
+            --> Job Name (eg . FIRST job , Second Job)  [~ In this Case both the Job will be trigger and after completed it will start the Third Job]
+    
+  CASE2:       * Project to Watch 
+            --> Job Name (eg . Second Job) [~ In this case If second job will be trigger and completed Build then Third Job should be run.
+  
+      SELECT :- Trigger only if build is stable
+
+
+Step 5:- Goto Build :- Select Execute Shell 
+                             ----> Command or scripts 
+
+
+
+
+
+
+
+REQUIREMENT 1 :- JENKINS JOB THAT SHOULD EXECUTE ON THE REMOTE SERVER.
+
+point1: DOWNLOAD PLUGIN (Publish OVER SSH)
+
+
+STEP 5 :-  Dashboard --> Goto Manage Jenkins ---> MANAGE PLUGIN --> Availble (search and download Publish over ssh plugin).
+
+
+STEP 6-  Goto Manage Jenkins --> Configure System --->after installing plugin you will see option (Publish over SSH).
+          
+             ~ Jenkins SSH Key
+                   
+                  * share your jenkins master (.pem key or public key ) in key blocks.
+
+              
+              ~ select SSH server 
+                  
+                   *  provide Name of your remote server ; Hostname : IP address ; username : (hostname [eg. ubuntu ; ec2-user])
+
+                  NOTES:- share your key to the jenkins master server of your remote server in ~/.ssh directory under authorized_keys.
+                       
+command to generate public key :- # ssh-keygen
+                                  # copy id_rsa.pub of remote server then  goto jenkins master authorized_keys , paste id_rsa.pub key.   
+                         
+              ~     Then Test your configuration is Success
+
+
+      
+
+
+
+==========================================================================================================================================================
+pipeline {
+  agent any
+  stages {
+    stage('1st job') {
+      steps {
+          sshPublisher(publishers: [sshPublisherDesc(configName: 'servername', transfers: [sshTransfer(execCommand:'echo $PWD')], usePromotionTimestamp: false, useWorkspaceInPromotion: false, verbose: false)])
+        sh 'echo "1st job"'
+      }
+    }
+
+  }
+  parameters {
+    string(name: 'string1stparam', defaultValue: '', description: '')
+    choice(name: 'choicepara', choices: [], description: '')
+  }
+}
+
+==============================================================================================================================================================
+
+
+    pipeline {
+  agent any
+  stages {
+    stage('VNF 2nd job') {
+      steps {
+          sshPublisher(publishers: [sshPublisherDesc(configName: 'makeserver', transfers: [sshTransfer(execCommand:'echo $PWD')], usePromotionTimestamp: false, useWorkspaceInPromotion: false, verbose: false)])
+        sh 'echo "2nd job"'
+      }
+    }
+
+  }
+  parameters {
+    string(name: 'stringparam', defaultValue: '', description: '')
+  }
+  triggers {
+    upstream(upstreamProjects: 'vjob1, ', threshold: hudson.model.Result.SUCCESS)
+  }
+}
+
+
+
+==================================================================================================================================================================
+
+pipeline {
+  agent any
+  stages {
+    stage('3rd job') {
+        
+      steps {
+          sshPublisher(publishers: [sshPublisherDesc(configName: 'prodserver', transfers: [sshTransfer(execCommand:'echo $BASH')], usePromotionTimestamp: false, useWorkspaceInPromotion: false, verbose: false)])
+        sh 'echo "3rdnd job"'
+      }
+    }
+
+  }
+  parameters {
+    string(name: 'stringparam', defaultValue: '', description: '')
+    choice(name: 'choicepara', choices: [], description: '')
+  }
+  triggers {
+    upstream(upstreamProjects: 'vjob2, ', threshold: hudson.model.Result.SUCCESS)
+  }
+}
